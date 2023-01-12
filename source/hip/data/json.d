@@ -204,7 +204,6 @@ struct JSONValue
 			return newIndex < data.length;
 		}
 
-		data = data[1..$];
 		JSONValue ret;
 		ret.data.object = new JSONObject();
 		JSONValue* current = &ret;
@@ -456,12 +455,15 @@ struct JSONValue
 				}
 				ret~= '{';
 				bool isFirst = true;
-				foreach(k, v; data.object.value)
+				if(data.object !is null)
 				{
-					if(!isFirst)
-						ret~= ", ";
-					isFirst = false;
-					ret~= '"'~k~"\" : "~v.toString(false);
+					foreach(k, v; data.object.value)
+					{
+						if(!isFirst)
+							ret~= ", ";
+						isFirst = false;
+						ret~= '"'~k~"\" : "~v.toString(false);
+					}
 				}
 				ret~= '}';
 				break;
