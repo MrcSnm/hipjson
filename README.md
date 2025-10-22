@@ -2,6 +2,60 @@
 
 A high performance implementation of JSON parser with std.json syntax. Used by Redub and Hipreme Engine.
 
+## Usage
+
+```d
+///Parsing
+void main()
+{
+
+    import hip.data.json;
+    enum jsonSource = q{
+    {
+        "unicode": "こんいちは",
+        "こんにちは": "using unicode key",
+        "hello": "oii",
+        "test": "teste",
+        "com,ma": "val,ue",
+        "integer": -5345,
+        "floating": -54.23,
+        "array": [1,2],
+        "strArr":  ["hello", "friend"],
+        "mixedArr":  ["hello", 523, -53.23],
+        "arrInArr": ["hello", [1, -2, -52.23], "again"],
+        "emptyObj": {
+
+        },
+        "simpleObj": {
+            "path": "sound.wav",
+            "data": [1, 2, 3, 4, 5, 6]
+        },
+        "testObj": {
+            "simpleObj": {
+                "path": "sound.wav",
+                "data": [1, 2, 3, 4, 5, 6]
+            },
+            "anotherObj": {
+                "key": "balanced"
+            }
+        }
+    }};
+
+    JSONValue v = parseJSON(jsonSource);
+}
+
+///Mutating and creating the DOM
+
+void main()
+{
+    JSONValue m = JSONValue.emptyObject;
+    m["someKey] = JSONValue(500);
+    m["here"] = 500;
+    import std.stdio;
+    writeln = m.toString;
+}
+```
+
 
 ### Testing
 
