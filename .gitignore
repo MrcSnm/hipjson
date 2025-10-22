@@ -1,4 +1,5 @@
 .dub
+.history
 docs.json
 __dummy.html
 docs/
@@ -13,3 +14,7 @@ simple_json-test-*
 *.o
 *.obj
 *.lst
+*.exp
+*.lib
+*.pdb
+testJson.json

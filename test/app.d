@@ -17,36 +17,27 @@ enum jsonSource = q{
     },
     "simpleObj": {
         "path": "sound.wav",
-        "data": [1, 2, 3, 4, 5, 6],
+        "data": [1, 2, 3, 4, 5, 6]
     },
     "testObj": {
         "simpleObj": {
             "path": "sound.wav",
-            "data": [1, 2, 3, 4, 5, 6],
+            "data": [1, 2, 3, 4, 5, 6]
         },
         "anotherObj": {
             "key": "balanced"
         }
     }
-	
 }};
 
 
-enum Tests = 10_000;
+enum Tests = 50_000;
 
 void main()
 {
 	import std.datetime.stopwatch;
 
-	StopWatch timeHip = StopWatch(AutoStart.yes);
-	foreach(_; 0..Tests)
-	{
-        import hip.data.json;
-		auto json = JSONValue.parse(
-			jsonSource
-		);
-	}
-	writeln("Hip Simple JSON: ", timeHip.peek, " (",Tests, " Tests) ");
+
 
 	StopWatch timeStd = StopWatch(AutoStart.yes);
 	foreach(_; 0..Tests)
@@ -56,6 +47,15 @@ void main()
 	}
 	// writeln("test" in json);
 	writeln("STD JSON: ", timeStd.peek, " (",Tests, " Tests) ");
+
+	StopWatch timeJsonPipe = StopWatch(AutoStart.yes);
+    foreach(_; 0..Tests)
+    {
+        import iopipe.json.serialize;
+        import iopipe.json.dom;
+        auto j = jsonSource.deserialize!(JSONValue!string);
+    }
+    writeln("JSONPIPE: ", timeJsonPipe.peek, " (",Tests," Tests)");
 
 	StopWatch timeMir = StopWatch(AutoStart.yes);
 	foreach(_; 0..Tests)
@@ -67,14 +67,15 @@ void main()
 	// writeln("test" in json);
 	writeln("MIR JSON: ", timeMir.peek, " (",Tests, " Tests) ");
 
-	StopWatch timeJsonPipe = StopWatch(AutoStart.yes);
-    foreach(_; 0..Tests)
-    {
-        import iopipe.json.serialize;
-        import iopipe.json.dom;
-        auto j = jsonSource.deserialize!(JSONValue!string);
-    }
-    writeln("JSONPIPE: ", timeJsonPipe.peek, " (",Tests," Tests)");
+	StopWatch timeHip = StopWatch(AutoStart.yes);
+	foreach(_; 0..Tests)
+	{
+        import hip.data.json;
+		auto json = parseJSON(
+			jsonSource
+		);
+	}
+	writeln("HipJSON: ", timeHip.peek, " (",Tests, " Tests) ");
 }
 
 unittest

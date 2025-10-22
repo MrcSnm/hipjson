@@ -2,15 +2,27 @@
 	"authors": [
 		"Hipreme"
 	],
-	"copyright": "Copyright © 2023, Hipreme",
+	"copyright": "Copyright © 2023 - 2025, Hipreme",
+	"description": "A high performance implementation of JSON parser with std.json syntax. Used by Redub and Hipreme Engine",
 	"dependencies": {
-		"jsoniopipe": "~>0.1.4",
-		"mir-ion": "~>2.1.3"
+		"d-segmented-hashmap": "~>1.0.6"
 	},
-	"description": "A minimal D application.",
-	"dflags": [
-		"-checkaction=D"
+	"configurations": [
+		{
+			"name": "default"
+		},
+		{
+			"name": "test",
+			"sourcePaths": [
+				"source",
+				"test"
+			],
+			"dependencies": {
+				"jsoniopipe": "~>0.1.4",
+				"mir-ion": "~>2.1.3"
+			}
+		}
 	],
-	"license": "proprietary",
-	"name": "simple_json"
+	"license": "MIT",
+	"name": "hipjson"
 }
