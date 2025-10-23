@@ -71,6 +71,21 @@ HipJSON is currently optimized with d-segmented-hashmap, which makes it get a mu
 It also has a string buffer performance optimization which makes it even faster when you're dealing with mostly strings.
 
 
+## JSONs with large strings objects and strings (dub registry dump)
+
+When it is mostly strings, HipJSON is able to reach in my PC up to 735 MB per second.
+```
+Parsed: 1528 MB
+Took: 2079ms
+MB per Second: 735.057
+Allocated: 3836.6 MB
+Free: 828.388 MB
+Used: 1185.21 MB
+Collection Count: 11
+Collection Time: 313 ms, 790 ╬╝s, and 7 hnsecs
+```
+
+
 ### Using the Javascript large object generation
 
 Call `node genLargeObject.js` first to generate testJson.json
@@ -81,6 +96,7 @@ Speed: 71.06 MB/s
 - HipJSON parsing that same file
 `Call with dub test -b release-debug --compiler=ldc2`
 
+```
 Took: 606ms
 MB per Second: 86.5162
 Allocated: 739.969 MB
@@ -88,3 +104,4 @@ Free: 68.7608 MB
 Used: 739.962 MB
 Collection Count: 7
 Collection Time: 273 ms, 757 μs, and 5 hnsecs
+```
