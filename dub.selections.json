@@ -1,11 +1,12 @@
 {
 	"fileVersion": 1,
 	"versions": {
+		"asdf": "0.7.17",
 		"d-segmented-hashmap": "1.0.7",
 		"intel-intrinsics": "1.12.0",
 		"jsoniopipe": "0.1.4",
 		"iopipe": "0.2.5",
-		"mir-ion": "2.1.9",
+		"mir-ion": "2.3.4",
 		"mir-algorithm": "3.22.4",
 		"mir-core": "1.7.3",
 		"mir-cpuid": "1.2.11"

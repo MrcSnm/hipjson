@@ -105,11 +105,25 @@ while(fetch("someapi.com/a/json", buffer)) //or file.byChunk
 ### Testing
 
 With `dub -c test -b release-debug --compiler=ldc2`:
+
+#### Target = <TODO>
 ```
 STD JSON: 330 ms, 592 μs, and 1 hnsec (50000 Tests)
 JSONPIPE: 209 ms, 604 μs, and 3 hnsecs (50000 Tests)
-MIR JSON: 259 ms, 756 μs, and 1 hnsec (50000 Tests)
+Mir Ion Algebraic: 259 ms, 756 μs, and 1 hnsec (50000 Tests)
+Mir Ion Amazon   : <TODO>
+Mir ASDF         : <TODO>
 HipJSON: 78 ms, 604 μs, and 5 hnsecs (50000 Tests)
+```
+
+#### Target = Apple M4
+```
+STD JSON: 340 ms, 500 μs, and 7 hnsecs (50000 Tests) 
+JSONPIPE: 239 ms and 89 μs (50000 Tests)
+Mir Ion Algebraic: 234 ms, 974 μs, and 3 hnsecs (50000 Tests) 
+Mir Ion Amazon   : 98 ms, 492 μs, and 8 hnsecs (50000 Tests) 
+Mir ASDF         : 22 ms, 389 μs, and 9 hnsecs (50000 Tests) 
+HipJSON: 85 ms, 877 μs, and 9 hnsecs (50000 Tests) 
 ```
 
 HipJSON is currently optimized with d-segmented-hashmap, which makes it get a much faster parsing speed as it never rehashes its dictionaries.

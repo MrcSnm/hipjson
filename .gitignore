@@ -18,3 +18,5 @@ simple_json-test-*
 *.lib
 *.pdb
 testJson.json
+hipjson
+hipjson-test-simd

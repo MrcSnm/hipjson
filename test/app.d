@@ -91,7 +91,29 @@ void main()
 		deserializeJson!JsonAlgebraic(jsonSource);
 	}
 	// writeln("test" in json);
-	writeln("MIR JSON: ", timeMir.peek, " (",Tests, " Tests) ");
+	writeln("Mir Ion Algebraic: ", timeMir.peek, " (",Tests, " Tests) ");
+
+	StopWatch timeMirIon = StopWatch(AutoStart.yes);
+	foreach(_; 0..Tests)
+	{
+		import mir.ion.conv;
+		import mir.ion.stream;
+		foreach(symbolTable, scope ionValue; jsonSource.json2ion.IonValueStream)
+		{
+			// symbolTable is a memory efficient map of keys. See Amazon Ion for details.
+		}
+	}
+	// writeln("test" in json);
+	writeln("Mir Ion Amazon   : ", timeMirIon.peek, " (",Tests, " Tests) ");
+
+	StopWatch timeMirAsdf = StopWatch(AutoStart.yes);
+	foreach(_; 0..Tests)
+	{
+		import asdf: parseJson;
+		auto json = parseJson(jsonSource);
+	}
+	// writeln("test" in json);
+	writeln("Mir     ASDF     : ", timeMirAsdf.peek, " (",Tests, " Tests) ");
 
 	StopWatch timeHip = StopWatch(AutoStart.yes);
 	foreach(_; 0..Tests)
