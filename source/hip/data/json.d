@@ -21,11 +21,10 @@ version(Have_intel_intrinsics)
 {
 	version(LDC)
 	{
-		enum HasAVX2 = __traits(targetHasFeature, "avx2");
-		static assert(!__traits(targetHasFeature, "avx2"), "Do not use AVX2 as it is currently has an open bug: https://github.com/AuburnSounds/intel-intrinsics/issues/152");
+		// enum HasAVX2 = __traits(targetHasFeature, "avx2");
+		// static assert(!__traits(targetHasFeature, "avx2"), "Do not use AVX2 as it is currently has an open bug: https://github.com/AuburnSounds/intel-intrinsics/issues/152");
 	}
-	else
-		enum HasAVX2 = false;
+	enum HasAVX2 = false; //Avx2 is buggy
 	enum HasSSE2 = true;
 }
 else
@@ -974,7 +973,6 @@ struct JSONValue
 	bool hasErrorOccurred() const { return type == JSONType.error; }
 
 	/**
-	 *
 	 * Params:
 	 *   compressed = Won't include any space in the file. Also, won't escape backslash. Since the parsing works with a single backslash.
 	 * this may reduce the json size, and increase the parsing speed.
@@ -983,101 +981,62 @@ struct JSONValue
 	 */
 	string toString(bool compressed = false)() const
 	{
-		if(type == JSONType.error)
-			return error();
+		StringBufferSink sink;
+		sink.initialize();
+		toString(sink);
+		return sink.finalize;
+	}
+	void toString(bool compressed = false, OutputSink)(ref OutputSink str) const
+	{
 		import std.conv:to;
-		string ret;
-
-		static string escapeCharacters(string input)
-		{
-			size_t length = input.length;
-			foreach(ch; input)
-			{
-				if(ch == '\n' || ch == '\t' || ch == '\r' || ch == '"' || ch == '\\') length++;
-			}
-			if(length == input.length) return input;
-			char[] escaped = new char[](length);
-			length = 0;
-			foreach(i; 0..input.length)
-			{
-				switch(input[i])
-				{
-					case '"':
-						escaped[length] = '\\';
-						escaped[++length] = '"';
-						break;
-					case '\\':
-						escaped[length] = '\\';
-						escaped[++length] = '\\';
-						break;
-					case '\n':
-						escaped[length] = '\\';
-						escaped[++length] = 'n';
-						break;
-					case '\r':
-						escaped[length] = '\\';
-						escaped[++length] = 'r';
-						break;
-					case '\t':
-						escaped[length] = '\\';
-						escaped[++length] = 't';
-						break;
-					default:
-						escaped[length] = input[i];
-						break;
-				}
-				length++;
-			}
-			return cast(string)escaped;
-		}
-
 		final switch ( type )
 		{
 			case JSONType.int_:
-				ret = data._int.to!(string);
+				str~= data._int.to!(string);
 				break;
 			case JSONType.float_:
-				ret = data._float.to!string;
+				str~= data._float.to!string;
 				break;
 			case JSONType.bool_:
-				if(data._int == 2) ret = "Incomplete Stream";
-				else ret = data._bool ? "true" : "false";
+				if(data._int == 2) str~= "Incomplete Stream";
+				else str~= data._bool ? "true" : "false";
 				break;
 			case JSONType.error:
-				ret = error();
+				str~= error();
 				break;
 			case JSONType.string_:
-				ret = '"'~escapeCharacters(get!string)~'"';
+				str~= '"';
+				escapeCharacters(str, get!string);
+				str~='"';
 				break;
 			case JSONType.null_:
-				ret = "null";
+				str~="null";
 				break;
 			case JSONType.array:
 			{
-				ret = "[";
+				str~= '[';
 				bool isFirst = true;
 				foreach(v; data.array.getArray)
 				{
 					static if(compressed)
 					{
 						if(!isFirst)
-							ret~= ',';
+							str~= ',';
 					}
 					else
 					{
 						if(!isFirst)
-							ret~= ", ";
+							str~= ", ";
 					}
 					isFirst = false;
-					ret~= v.toString!compressed();
+					v.toString!compressed(str);
 				}
-				ret~= "]";
+				str~= ']';
 				break;
 			}
 			case JSONType.object:
 			{
-
-				ret~= '{';
+				str~= '{';
 				bool isFirst = true;
 				version(UseDHashMap)
 					auto obj = data.object;
@@ -1085,31 +1044,28 @@ struct JSONValue
 					auto obj = *data.object;
 				foreach(k, v; obj)
 				{
-					static if(compressed)
+					if(!isFirst)
 					{
-						if(!isFirst)
-							ret~= ',';
+						static if(compressed)
+							str~= ',';
+						else
+							str~= ", ";
+						isFirst = false;
 					}
-
-					else
-					{
-						if(!isFirst)
-							ret~=  ", ";
-					}
-					isFirst = false;
+					str~= '"';
+					escapeCharacters(str, k);
 					static if(compressed)
-						ret~= '"'~escapeCharacters(k)~"\":"~v.toString!compressed;
+						str~="\":";
 					else
-						ret~= '"'~escapeCharacters(k)~"\" : "~v.toString!compressed;
+						str~="\" : ";
+					v.toString!compressed(str);
 				}
-				ret~= '}';
+				str~= '}';
 				break;
 
 			}
 		}
-		return ret;
 	}
-
     void dispose()
     {
         if(type == JSONType.object)
@@ -1329,6 +1285,50 @@ private struct StringPool
 	}
 }
 
+
+private struct StringBufferSink
+{
+	char[] data;
+	size_t used;
+
+	void initialize()
+	{
+		import std.array:uninitializedArray;
+		data = uninitializedArray!(char[])(1024);
+	}
+
+	pragma(inline, true) size_t length() const { return used; }
+
+	void reserve(size_t newSize)
+	{
+		if(used + newSize > data.length)
+			data.length = cast(size_t)(data.length*1.75) + newSize;
+	}
+	void fastPut(char ch){data[used++] = ch;}
+	void fastPut(string str)
+	{
+		data[used..used+str.length] = str;
+		used+= str.length;
+	}
+	ref StringBufferSink opOpAssign(string op)(char value) if(op == "~")
+	{
+		reserve(used+1);
+		data[used++] = value;
+		return this;
+	}
+	ref StringBufferSink opOpAssign(string op)(string value) if(op == "~")
+	{
+		reserve(used+value.length);
+		data[used..used+value.length] = value;
+		used+= value.length;
+		return this;
+	}
+	string finalize()
+	{
+		data.length = used;
+		return cast(string)data[0..used];
+	}
+}
 pragma(inline, true)
 bool pushNewScope(JSONValue val, ref JSONValue* current, ref ptrdiff_t stackLength, ref JSONValue[] stack, string key)
 {
@@ -1417,6 +1417,49 @@ private char escapedCharacter(char a)
 	}
 }
 
+private void escapeCharacters(OutputSink)(ref OutputSink output, string input)
+{
+	size_t length = input.length;
+	foreach(ch; input)
+	{
+		if(ch == '\b' || ch == '\n' || ch == '\t' || ch == '\r' || ch == '"' || ch == '\\') length++;
+	}
+	if(length == input.length)
+	{
+		output~= input;
+		return;
+	}
+	output.reserve(output.length + length);
+	foreach(i; 0..input.length)
+	{
+		switch(input[i])
+		{
+			case '"':
+				output.fastPut(`\"`);
+				break;
+			case '\b':
+				output.fastPut(`\b`);
+				break;
+			case '\\':
+				output.fastPut(`\\`);
+				break;
+			case '\n':
+				output.fastPut(`\n`);
+				break;
+			case '\r':
+				output.fastPut(`\r`);
+				break;
+			case '\t':
+				output.fastPut(`\t`);
+				break;
+			default:
+				// output~= input[i];
+				output.fastPut(input[i]);
+				break;
+		}
+	}
+}
+
 unittest
 {
 	assert(parseJSON(`
@@ -1474,7 +1517,7 @@ unittest
 
 unittest
 {
-	enum path = `testJson.json`;
+	enum path = `c:\Users\Marcelo\AppData\Local\dub\.redub\1D3B3EDCD3BD5952.json`;
 	enum tests = 10;
 	import core.memory;
 	import std.datetime.stopwatch;
@@ -1482,9 +1525,10 @@ unittest
 	import std.stdio;
 
 	string file = readText(path);
+	auto js = parseJSON(file, true);
 	auto res = benchmark!(()
 	{
-		auto js = parseJSON(file, true);
+		js.toString!true();
 	})(tests);
 
 	size_t bytesRead = file.length * tests;
