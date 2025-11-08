@@ -484,29 +484,36 @@ struct JSONParseState
 		import std.conv:to;
 		return "Error at line "~line.to!string~" "~err~" on index '"~(totalParsedIndex+index -lineStartIndex).to!string~"' last parsed: "~lastValue.toString~" [Internal: "~f~":"~l.to!string~"]";
 	}
-
-	private bool getNextLiteral(const char[] data, ptrdiff_t currentIndex, out ptrdiff_t newIndex, out JSONValue value)
+	pragma(inline, true) private bool getNull(const char[] data, ptrdiff_t currentIndex, out ptrdiff_t newIndex, out JSONValue value)
 	{
 		newIndex = currentIndex;
-		if(index + "null".length < data.length)
+		if(index + 3 < data.length && data[index..index + 4] == "null")
 		{
-			if(data[index.."true".length + index] == "true")
-			{
-				value = JSONValue(true);
-				newIndex = currentIndex + 3;
-			}
-			else if(data[index.."null".length + index] == "null")
-			{
-				value = JSONValue(null);
-				newIndex = currentIndex + 3;
-			}
-			else if(index + "false".length < data.length && data[index.."false".length + index] == "false")
-			{
-				value = JSONValue(false);
-				newIndex = currentIndex + 4;
-			}
-			else
-				return false;
+			value = JSONValue(null);
+			newIndex = currentIndex + 3;
+			return true;
+		}
+		return false;
+	}
+	pragma(inline, true) private bool getTrue(const char[] data, ptrdiff_t currentIndex, out ptrdiff_t newIndex, out JSONValue value)
+	{
+		newIndex = currentIndex;
+		if(index + 3 < data.length && data[index..index + 4] == "true")
+		{
+			value = JSONValue(true);
+			newIndex = currentIndex + 3;
+			return true;
+		}
+		return false;
+	}
+
+	pragma(inline, true) private bool getFalse(const char[] data, ptrdiff_t currentIndex, out ptrdiff_t newIndex, out JSONValue value)
+	{
+		newIndex = currentIndex;
+		if(index + 4 < data.length && data[index..index + 5] == "false")
+		{
+			value = JSONValue(true);
+			newIndex = currentIndex + 3;
 			return true;
 		}
 		return false;
@@ -769,7 +776,7 @@ struct JSONValue
 				switch(ch)
 				{
 					case '\n': line++; lineStartIndex = index+totalParsedIndex; break;
-					case ' ', '\r', '\t': break;
+					case ' ', '\r', '\t', '\b': break;
 					case '{':
 					{
 						if(state != JSONState.value)
@@ -863,44 +870,60 @@ struct JSONValue
 							default: assert(false, "Error?");
 						}
 						break;
-					default:
-						switch(state)
+					case 't':
+						assert(state == JSONState.value || state == JSONState.lookingForNext); //Any value or array
+						ptrdiff_t currentIndex = index;
+						if(!getTrue(data, currentIndex, index, lastValue))
 						{
-							case JSONState.value: //Any value
-							case JSONState.lookingForNext: //Array
-								if(ch.isNumeric)
-								{
-									if(state == JSONState.lookingForNext && current.type != JSONType.array)
-										return output = JSONValue.errorObj(getErr("unexpected number."));
-
-									JSONType out_type;
-									ptrdiff_t currentIndex = index;
-									if(!getNextNumber(data, currentIndex, index, lastValue.data, out_type))
-									{
-										index = currentIndex;
-										return IncompleteStream;
-									}
-									lastValue.type = out_type;
-									pushToStack(lastValue, current, lastValue, lastKey);
-									state = JSONState.lookingForNext;
-								}
-								else
-								{
-									ptrdiff_t currentIndex = index;
-									if(!getNextLiteral(data, currentIndex, index, lastValue))
-									{
-										index = currentIndex;
-										return IncompleteStream;
-									}
-									if(state == JSONState.lookingForNext && current.type != JSONType.array)
-										return output = JSONValue.errorObj(getErr(lastValue.toString));
-									pushToStack(lastValue, current, lastValue, lastKey);
-									state = JSONState.lookingForNext;
-								}
-								break;
-							default:break;
+							index = currentIndex;
+							return IncompleteStream;
 						}
+						if(state == JSONState.lookingForNext && current.type != JSONType.array)
+							return output = JSONValue.errorObj(getErr(lastValue.toString));
+						pushToStack(lastValue, current, lastValue, lastKey);
+						state = JSONState.lookingForNext;
 						break;
+					case 'f':
+						assert(state == JSONState.value || state == JSONState.lookingForNext); //Any value or array
+						ptrdiff_t currentIndex = index;
+						if(!getFalse(data, currentIndex, index, lastValue))
+						{
+							index = currentIndex;
+							return IncompleteStream;
+						}
+						if(state == JSONState.lookingForNext && current.type != JSONType.array)
+							return output = JSONValue.errorObj(getErr(lastValue.toString));
+						pushToStack(lastValue, current, lastValue, lastKey);
+						state = JSONState.lookingForNext;
+						break;
+					case 'n':
+						assert(state == JSONState.value || state == JSONState.lookingForNext); //Any value or array
+						ptrdiff_t currentIndex = index;
+						if(!getNull(data, currentIndex, index, lastValue))
+						{
+							index = currentIndex;
+							return IncompleteStream;
+						}
+						if(state == JSONState.lookingForNext && current.type != JSONType.array)
+							return output = JSONValue.errorObj(getErr(lastValue.toString));
+						pushToStack(lastValue, current, lastValue, lastKey);
+						state = JSONState.lookingForNext;
+						break;
+					case '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.':
+						if(state == JSONState.lookingForNext && current.type != JSONType.array)
+							return output = JSONValue.errorObj(getErr("unexpected number."));
+						JSONType out_type;
+						ptrdiff_t currentIndex = index;
+						if(!getNextNumber(data, currentIndex, index, lastValue.data, out_type))
+						{
+							index = currentIndex;
+							return IncompleteStream;
+						}
+						lastValue.type = out_type;
+						pushToStack(lastValue, current, lastValue, lastKey);
+						state = JSONState.lookingForNext;
+					break;
+					default:break;
 				}
 				index++;
 			}
@@ -1304,8 +1327,8 @@ private struct StringBufferSink
 		if(used + newSize > data.length)
 			data.length = cast(size_t)(data.length*1.75) + newSize;
 	}
-	void fastPut(char ch){data[used++] = ch;}
-	void fastPut(string str)
+	pragma(inline, true) void fastPut(char ch){data[used++] = ch;}
+	pragma(inline, true) void fastPut(string str)
 	{
 		data[used..used+str.length] = str;
 		used+= str.length;
@@ -1419,45 +1442,26 @@ private char escapedCharacter(char a)
 
 private void escapeCharacters(OutputSink)(ref OutputSink output, string input)
 {
-	size_t length = input.length;
-	foreach(ch; input)
-	{
-		if(ch == '\b' || ch == '\n' || ch == '\t' || ch == '\r' || ch == '"' || ch == '\\') length++;
-	}
-	if(length == input.length)
-	{
-		output~= input;
-		return;
-	}
-	output.reserve(output.length + length);
+	immutable charList = [`\"`, `\b`, `\\`, `\n`, `\r`, `\t`];
+	size_t left = 0;
 	foreach(i; 0..input.length)
 	{
 		switch(input[i])
 		{
-			case '"':
-				output.fastPut(`\"`);
-				break;
-			case '\b':
-				output.fastPut(`\b`);
-				break;
-			case '\\':
-				output.fastPut(`\\`);
-				break;
-			case '\n':
-				output.fastPut(`\n`);
-				break;
-			case '\r':
-				output.fastPut(`\r`);
-				break;
-			case '\t':
-				output.fastPut(`\t`);
-				break;
-			default:
-				// output~= input[i];
-				output.fastPut(input[i]);
-				break;
+			static foreach(chIdx, ch; ['"', '\b', '\\', '\n', '\r', '\t'])
+			{
+				case ch:
+					output.reserve(output.length + left - i);
+					output.fastPut(input[left..i]);
+					output.fastPut(charList[chIdx]);
+					left = i;
+					goto default;
+			}
+			default:break;
 		}
 	}
+	output.reserve(output.length + input.length - left);
+	output.fastPut(input[left..$]);
 }
 
 unittest
@@ -1517,7 +1521,7 @@ unittest
 
 unittest
 {
-	enum path = `c:\Users\Marcelo\AppData\Local\dub\.redub\1D3B3EDCD3BD5952.json`;
+	enum path = `c:\Users\Marcelo\AppData\Local\dub\dump.json`;
 	enum tests = 10;
 	import core.memory;
 	import std.datetime.stopwatch;
@@ -1528,6 +1532,7 @@ unittest
 	auto js = parseJSON(file, true);
 	auto res = benchmark!(()
 	{
+		// parseJSON(file, true);
 		js.toString!true();
 	})(tests);
 
