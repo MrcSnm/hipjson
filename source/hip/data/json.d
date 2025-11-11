@@ -1360,6 +1360,7 @@ private struct StringBufferSink
 		data.length = used;
 		return cast(string)data[0..used];
 	}
+	string toString() const { return cast(string)data[0..used];}
 }
 pragma(inline, true)
 bool pushNewScope(JSONValue val, ref JSONValue* current, ref ptrdiff_t stackLength, ref JSONValue[] stack, string key)
@@ -1451,25 +1452,67 @@ private char escapedCharacter(char a)
 
 private void escapeCharacters(OutputSink)(ref OutputSink output, string input)
 {
-	immutable charList = [`\"`, `\b`, `\\`, `\n`, `\r`, `\t`];
+	import inteli.smmintrin;
+	alias bytes = byte16;
+	alias intrep = int4;
+	alias loadUnaligned = _mm_loadu_si128;
+	alias moveMask = _mm_movemask_epi8;
+	enum string[6] charList = [`\"`, `\b`, `\\`, `\n`, `\r`, `\t`];
 	output.reserve(output.length + input.length*2);
 	size_t left = 0;
-	foreach(i; 0..input.length)
+
+
+	size_t idx = 0;
+	static void perByte(ref OutputSink output, string input, size_t start, size_t count = 16)
 	{
-		switch(input[i])
+		count = count + start > input.length ? input.length - start: count;
+		loop: for(size_t i = start; i < start+count; i++)
 		{
-			static foreach(chIdx, ch; ['"', '\b', '\\', '\n', '\r', '\t'])
+			switch(input[i])
 			{
-				case ch:
-					output.fastPut(input[left..i]);
-					output.fastPut(charList[chIdx]);
-					left = i + 1;
-					goto default;
+				static foreach(chIdx, ch; ['"', '\b', '\\', '\n', '\r', '\t'])
+				{
+					case ch:
+						output.fastPut(charList[chIdx]);
+						continue loop;
+				}
+				default:
+					output.fastPut(input[i]);
+					break;
 			}
-			default:break;
 		}
 	}
-	output.fastPut(input[left..$]);
+	while(idx < input.length)
+	{
+		if(idx + 16 < input.length)
+		{
+			bytes v = cast(bytes)loadUnaligned(cast(bytes*)(input.ptr + idx));
+			auto cmp = (v == bytes('"')) |
+                   	(v == bytes('\b')) |
+                   	(v == bytes('\\')) |
+                   	(v == bytes('\n')) |
+                   	(v == bytes('\t')) |
+                   	(v == bytes('\r'));
+			int mask = moveMask(cast(intrep)cmp);
+			if(mask == 0)
+			{
+				idx+= 16;
+				continue;
+			}
+			import core.bitop;
+			size_t offset = bsf(mask);
+			output.fastPut(input[left..idx+offset]);
+			perByte(output, input, idx+offset, 16 - offset);
+			idx+= 16;
+			left = idx;
+		}
+		else
+		{
+			output.fastPut(input[left..idx]);
+			perByte(output, input, idx, input.length - idx);
+			break;
+		}
+	}
 }
 
 unittest
@@ -1536,12 +1579,22 @@ unittest
 	assert(parseJSON(json).toString == `{"array" : [1, 2, 3, 4, 10, "Hello", true, false], "there" : "what", "hello" : "world"}`);
 }
 
+unittest
+{
+	enum json = "
+{
+	\"hello\": \"\nworldworldworldworld\"
+}";
+
+	assert(parseJSON(json).toString == `{"hello" : "\nworldworldworldworld"}`);
+}
+
 
 
 
 unittest
 {
-	enum path = `c:\Users\Marcelo\AppData\Local\dub\dump.json`;
+	enum path = `c:\Users\Marcelo\AppData\Local\dub\hello.json`;
 	enum tests = 10;
 	import core.memory;
 	import std.datetime.stopwatch;
