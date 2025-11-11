@@ -10,8 +10,9 @@
 		},
 		{
 			"name": "simd",
+			"dflags-ldc": ["-mattr=+avx2"],
 			"dependencies": {
-				"intel-intrinsics": "1.12.0"
+				"intel-intrinsics": "~>1.12.2"
 			}
 		},
 		{
@@ -19,7 +20,7 @@
 				"jsoniopipe": "~>0.1.4",
 				"mir-ion": "~>2.3.4",
 				"asdf": "~>0.7.17",
-				"intel-intrinsics": "1.12.0"
+				"intel-intrinsics": "~>1.12.2"
 			},
 			"name": "test",
 			"sourcePaths": [
