@@ -512,7 +512,7 @@ struct JSONParseState
 		newIndex = currentIndex;
 		if(index + 4 < data.length && data[index..index + 5] == "false")
 		{
-			value = JSONValue(true);
+			value = JSONValue(false);
 			newIndex = currentIndex + 3;
 			return true;
 		}
@@ -1011,14 +1011,14 @@ struct JSONValue
 	}
 	void toString(bool compressed = false, OutputSink)(ref OutputSink str) const
 	{
-		import std.conv:to;
+		import std.format;
 		final switch ( type )
 		{
 			case JSONType.int_:
-				str~= data._int.to!(string);
+				formattedWrite(str, "%s", data._int);
 				break;
 			case JSONType.float_:
-				str~= data._float.to!string;
+				formattedWrite(str, "%f", data._float);
 				break;
 			case JSONType.bool_:
 				if(data._int == 2) str~= "Incomplete Stream";
@@ -1041,14 +1041,11 @@ struct JSONValue
 				bool isFirst = true;
 				foreach(v; data.array.getArray)
 				{
-					static if(compressed)
+					if(!isFirst)
 					{
-						if(!isFirst)
+						static if(compressed)
 							str~= ',';
-					}
-					else
-					{
-						if(!isFirst)
+						else
 							str~= ", ";
 					}
 					isFirst = false;
@@ -1060,22 +1057,22 @@ struct JSONValue
 			case JSONType.object:
 			{
 				str~= '{';
-				bool isFirst = true;
 				version(UseDHashMap)
 					auto obj = data.object;
 				else
 					auto obj = *data.object;
+				uint i = 0;
 				foreach(k, v; obj)
 				{
-					if(!isFirst)
+					if(i++)
 					{
 						static if(compressed)
-							str~= ',';
+							str~= `,"`;
 						else
-							str~= ", ";
-						isFirst = false;
+							str~= `, "`;
 					}
-					str~= '"';
+					else
+						str~= '"';
 					escapeCharacters(str, k);
 					static if(compressed)
 						str~="\":";
@@ -1346,6 +1343,18 @@ private struct StringBufferSink
 		used+= value.length;
 		return this;
 	}
+
+	void put(char value)
+	{
+		reserve(used+1);
+		data[used++] = value;
+	}
+	void put(string value)
+	{
+		reserve(used+value.length);
+		data[used..used+value.length] = value;
+		used+= value.length;
+	}
 	string finalize()
 	{
 		data.length = used;
@@ -1443,6 +1452,7 @@ private char escapedCharacter(char a)
 private void escapeCharacters(OutputSink)(ref OutputSink output, string input)
 {
 	immutable charList = [`\"`, `\b`, `\\`, `\n`, `\r`, `\t`];
+	output.reserve(output.length + input.length*2);
 	size_t left = 0;
 	foreach(i; 0..input.length)
 	{
@@ -1451,16 +1461,14 @@ private void escapeCharacters(OutputSink)(ref OutputSink output, string input)
 			static foreach(chIdx, ch; ['"', '\b', '\\', '\n', '\r', '\t'])
 			{
 				case ch:
-					output.reserve(output.length + left - i);
 					output.fastPut(input[left..i]);
 					output.fastPut(charList[chIdx]);
-					left = i;
+					left = i + 1;
 					goto default;
 			}
 			default:break;
 		}
 	}
-	output.reserve(output.length + input.length - left);
 	output.fastPut(input[left..$]);
 }
 
@@ -1516,6 +1524,18 @@ unittest
 }`;
 	assert(parseJSON(json)["D5F04185E96CC720"].array[1].array[0].toString == `"Second Value"`);
 }
+
+unittest
+{
+	enum json = `
+{
+    "hello": "world",
+	"there": "what",
+	"array": [1, 2, 3, 4, 10, "Hello", true, false]
+}`;
+	assert(parseJSON(json).toString == `{"array" : [1, 2, 3, 4, 10, "Hello", true, false], "there" : "what", "hello" : "world"}`);
+}
+
 
 
 
