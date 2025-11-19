@@ -33,7 +33,7 @@
 	],
 	"copyright": "Copyright © 2023 - 2025, Hipreme",
 	"dependencies": {
-		"d-segmented-hashmap": "~>1.0.8"
+		"d-segmented-hashmap": "~>1.1.0"
 	},
 	"subConfigurations": {
 		"d-segmented-hashmap": "murmurhash2"

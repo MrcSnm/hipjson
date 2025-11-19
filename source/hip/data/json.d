@@ -21,8 +21,10 @@ version(Have_intel_intrinsics)
 {
 	version(LDC)
 	{
-		enum HasAVX2 = __traits(targetHasFeature, "avx2");
+		// enum HasAVX2 = __traits(targetHasFeature, "avx2");
+		// enum HasAVX2 = __traits(targetHasFeature, "avx2");
 	}
+	enum HasAVX2 = false;
 	enum HasSSE2 = true;
 }
 else
@@ -1378,10 +1380,7 @@ bool pushNewScope(JSONValue val, ref JSONValue* current, ref ptrdiff_t stackLeng
 	switch(currTemp.type)
 	{
 		case JSONType.object:
-			version(UseDHashMap)
-				(currTemp.data.object)[key] = *current;
-			else
-				(*currTemp.data.object)[key] = *current;
+			putInObject(currTemp.data.object, key, *current);
 			break;
 		case JSONType.array:
 			currTemp.data.array = JSONArray.append(currTemp.data.array, *current);
@@ -1393,6 +1392,15 @@ bool pushNewScope(JSONValue val, ref JSONValue* current, ref ptrdiff_t stackLeng
 		default: return false;
 	}
 	return true;
+}
+
+pragma(inline, true)
+private void putInObject(ref JSONObject obj, string key, ref JSONValue current)
+{
+	version(UseDHashMap)
+		(obj)[key] = current;
+	else
+		(obj).putNew(key, current);
 }
 
 
@@ -1419,10 +1427,7 @@ void pushToStack(JSONValue val, ref JSONValue* current, ref JSONValue lastValue,
 	switch(current.type) with(JSONType)
 	{
 		case object:
-			version(UseDHashMap)
-				current.data.object[lastKey] = val;
-			else
-				(*current.data.object)[lastKey] = val;
+			putInObject(current.data.object, lastKey, val);
 			break;
 		case array:
 			current.data.array = JSONArray.append(current.data.array, val);
@@ -1516,24 +1521,36 @@ private void escapeCharacters(OutputSink)(ref OutputSink output, string input)
 unittest
 {
 	assert(parseJSON(`
-	{
+{
     "name": "redub",
     "description": "Dub Based Build System, with parallelization per packages and easier to contribute",
     "authors": ["Hipreme"],
     "targetPath": "build",
-    "buildOptions": [
-        "debugInfo",
-        "debugInfoC",
-        "debugMode"
-    ],
+    "stringImportPaths": ["source"],
     "configurations": [
         {
             "name": "cli",
-            "targetType": "executable"
+            "targetType": "executable",
+            "platforms": ["windows", "linux"],
+            "versions": ["RedubCLI", "FSWForcePoll", "RedubWatcher"],
+            "dependencies": {
+                "fswatch": "~>0.6.1",
+                "arsd-official:terminal": "~>12.1"
+            }
+        },
+        {
+            "name": "cli-dev",
+            "versions": ["RedubCLI", "Developer", "RedubWatcher", "FSWForcePoll"],
+            "targetType": "executable",
+            "dependencies": {
+                "fswatch": "~>0.6.1",
+                "arsd-official:terminal": "~>12.1"
+            }
         },
         {
             "name": "library",
             "targetType": "staticLibrary",
+            "versions": ["AsLibrary"],
             "excludedSourceFiles": ["source/app.d"]
         }
     ],
@@ -1542,11 +1559,14 @@ unittest
         "semver": {"path": "semver"},
         "colorize": {"path": "colorize"},
         "adv_diff": {"path": "adv_diff"},
-        "hipjson": {"path": "hipjson"},
+        "hipjson": {"path": "C:\\Users\\Marcelo\\Documents\\D\\hipjson"},
+        "d_dependencies": {"path": "d_dependencies"},
+        "dub_sdl_to_json": {"path": "dub_sdl_to_json"},
+        "package_suppliers": {"path": "package_suppliers"},
+        "d_downloader": {"path": "d_downloader"},
         "xxhash3": "~>0.0.5"
     }
-
-}`).object["configurations"].array.length == 2);
+}`).object["configurations"].array.length == 3);
 
 }
 
@@ -1600,11 +1620,11 @@ unittest
 	import std.stdio;
 
 	string file = readText(path);
-	auto js = parseJSON(file, true);
+	// auto js = parseJSON(file, true);
 	auto res = benchmark!(()
 	{
-		// parseJSON(file, true);
-		js.toString!true();
+		parseJSON(file, true);
+		// js.toString!true();
 	})(tests);
 
 	size_t bytesRead = file.length * tests;
