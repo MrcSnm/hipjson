@@ -20,11 +20,9 @@ JSONValue parseJSON(const(char)[] jsonData, bool borrowStrings = false)
 version(Have_intel_intrinsics)
 {
 	version(LDC)
-	{
-		// enum HasAVX2 = __traits(targetHasFeature, "avx2");
-		// enum HasAVX2 = __traits(targetHasFeature, "avx2");
-	}
-	enum HasAVX2 = false;
+		enum HasAVX2 = __traits(targetHasFeature, "avx2");
+	else
+		enum HasAVX2 = false;
 	enum HasSSE2 = true;
 }
 else

@@ -10,7 +10,6 @@
 		},
 		{
 			"name": "simd",
-			"dflags-ldc": ["-mattr=+avx2"],
 			"dependencies": {
 				"intel-intrinsics": "~>1.12.2"
 			}
