@@ -3,6 +3,6 @@
 	"versions": {
 		"d-segmented-hashmap": "1.1.0",
 		"murmurhash-d": "1.0.0",
-		"intel-intrinsics": "1.12.2"
+		"intel-intrinsics": "1.14.7"
 	}
 }

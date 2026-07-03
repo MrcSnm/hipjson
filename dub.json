@@ -11,7 +11,7 @@
 		{
 			"name": "simd",
 			"dependencies": {
-				"intel-intrinsics": "~>1.12.2"
+				"intel-intrinsics": "~>1.14.7"
 			}
 		},
 		{
@@ -19,7 +19,7 @@
 				"jsoniopipe": "~>0.1.4",
 				"mir-ion": "~>2.3.4",
 				"asdf": "~>0.7.17",
-				"intel-intrinsics": "~>1.12.2"
+				"intel-intrinsics": "~>1.14.7"
 			},
 			"name": "test",
 			"sourcePaths": [
